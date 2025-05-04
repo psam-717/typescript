@@ -7,7 +7,7 @@ const connectDB = async(): Promise<void> => {
             throw new Error('Mongo URI not defined')
         }
         await mongoose.connect(mongoURI);
-        console.log('Database connected');
+        console.log('✅ Database connected');
     } catch (error) {
         console.error(error);
         process.exit(1)// exit app due to failure
