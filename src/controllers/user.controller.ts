@@ -21,15 +21,21 @@ export const signUp = async (req: Request, res: Response): Promise<void> => {
             password: hashedPassword
         })
         await user.save();
+
+        //exclude password from the data that is sent to the front end
+        const userData = {...user.toObject(), password: undefined}
+
          res.status(201).json({
             success: true,
             message: 'User signed up successfully',
-            data: user
+            data: userData
         })
+        return
         
     } catch (error) {
         console.error(error);
         res.status(500).json({success: false, message: 'Internal server error while signing up'});
+        return;
     }
 }
 
@@ -37,7 +43,7 @@ export const signUp = async (req: Request, res: Response): Promise<void> => {
 export const login = async (req: Request, res: Response): Promise<void> => {
     const {email, password} = req.body;
     try {
-        const user = await User.findOne({email});
+        const user = await User.findOne({email})
 
         if(!user){
             res.status(404).json({success: false, message: 'User not found'});
@@ -52,8 +58,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
         if(!process.env.JWT_SECRET){
             res.status(500).json({success: false, message: 'JWT_SECRET not set'});
-            return;
-            
+            return;  
         }
 
         // assign token when user has an account
@@ -65,22 +70,69 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
         res.cookie('jwtToken',token,{
                 httpOnly: true,
-                secure: process.env.NODE === 'production',
+                secure: process.env.NODE_ENV === 'production',
                 maxAge: 24 * 60 * 60 * 1000,
                 sameSite: 'strict'
             }
         )
 
+        //exclude password from data sent to the front end
+        const userWithoutPassword = {...user.toObject(), password: undefined}
+
         res.status(200).json({
             success: true,
             message: 'user logged in',
-            data: user
+            data: userWithoutPassword
         })
+        return;
 
 
     } catch (error) {
-        console.error(error);
+        console.error('error caused by', error);
         res.status(500).json({success: false, message: 'Internal server error while logging in'});
+        return;
+    }
+};
+
+export const getAllUsers = async(req: Request, res: Response): Promise<void> => {
+    try {
+        const getAllUsers = await User.find().select('-password');
+        if(!getAllUsers || getAllUsers.length === 0){
+            res.status(404).json({success: false, message: 'No users found'});
+            return;
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Users retrieved successfully',
+            data: getAllUsers
+        });
+        return;
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({success: false, message: 'Internal server error while retrieving users'})
+        return;
+    }
+}
+
+export const getPersonalData = async(req: Request, res: Response): Promise<void> => {
+    try {
+        const existingUser = await User.findById((req as any).user.id).select('-password');
+
+        if(!existingUser){
+            res.status(404).json({success: false, message: 'No user found'});
+        }
+   
+        res.status(200).json({
+            success: true,
+            message: 'Data retrieved successfully',
+            data: existingUser
+        })
+        return;
+
+    } catch (error) {
+        console.error('error caused by: ', error);
+        res.status(500).json({success: false, message: 'Internal server error occurred while retrieving data'});
         return;
     }
 }
